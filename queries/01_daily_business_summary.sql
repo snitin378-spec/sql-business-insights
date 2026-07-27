@@ -1,53 +1,129 @@
-WITH daily_summary AS
-(
-    SELECT
-        DATE(o.created_at) AS order_date,
-        COUNT(o.order_id) AS total_orders,
-        SUM(o.subtotal) AS revenue,
-        ROUND(SUM(o.subtotal) * 1.0 / COUNT(o.order_id),2) AS aov,
+-- Q1: Daily Business Summary with DoD and Same Weekday WoW
+-- Owner: Nithin
+-- Last Updated: 2026-07-27
+-- Business Question:
+-- How are we doing today compared to yesterday and the same weekday last week?
+--
+-- Sanity Checks:
+-- 1. paid_order_rate should be between 0 and 1.
+-- 2. cancelled_order_rate should be between 0 and 1.
+-- 3. Sum of daily orders should equal total orders.
 
-        COUNT(*) FILTER
-        (
-            WHERE LOWER(o.status)='paid'
-        ) AS paid_orders,
+with daily_summary as (
 
-        COUNT(*) FILTER
-        (
-            WHERE LOWER(o.status)='cancelled'
-        ) AS cancelled_orders,
+    select
+        date(created_at) as order_date,
+        count(order_id) as orders,
+        sum(subtotal) as revenue,
 
-        SUM(COALESCE(r.amount,0)) AS refund_amount
+        round(
+            sum(subtotal) * 1.0 /
+            nullif(count(order_id), 0),
+            2
+        ) as aov,
 
-    FROM ecom.orders o
+        count(*) filter (
+            where lower(status) = 'paid'
+        ) * 1.0 / nullif(count(*), 0) as paid_order_rate,
 
-    LEFT JOIN ecom.refunds r
-        ON o.order_id = r.order_id
+        count(*) filter (
+            where lower(status) = 'cancelled'
+        ) * 1.0 / nullif(count(*), 0) as cancelled_order_rate
 
-    GROUP BY DATE(o.created_at)
+    from ecom.orders
+
+    group by date(created_at)
+
+),
+
+daily_refunds as (
+
+    select
+        date(created_at) as refund_date,
+        sum(amount) as refunds_amount
+
+    from ecom.refunds
+
+    where lower(status) = 'succeeded'
+
+    group by date(created_at)
+
 )
 
-SELECT
-    order_date,
-    total_orders,
-    revenue,
-    aov,
-    paid_orders,
-    cancelled_orders,
-    refund_amount,
+select
 
-    LAG(revenue)
-    OVER
-    (
-        ORDER BY order_date
-    ) AS yesterday_revenue,
+    ds.order_date,
+    ds.orders,
+    ds.revenue,
+    ds.aov,
+    ds.paid_order_rate,
+    ds.cancelled_order_rate,
 
-    revenue -
-    LAG(revenue)
-    OVER
-    (
-        ORDER BY order_date
-    ) AS revenue_difference
+    coalesce(dr.refunds_amount, 0) as refunds_amount,
 
-FROM daily_summary
+    lag(ds.revenue, 1) over (
+        order by ds.order_date
+    ) as yesterday_revenue,
 
-ORDER BY order_date;
+    round(
+
+        (
+            ds.revenue
+            -
+            lag(ds.revenue, 1) over (
+                order by ds.order_date
+            )
+        ) * 100.0
+
+        /
+
+        nullif(
+
+            lag(ds.revenue, 1) over (
+                order by ds.order_date
+            ),
+
+            0
+
+        ),
+
+        2
+
+    ) as revenue_vs_yesterday_pct,
+
+    lag(ds.revenue, 7) over (
+        order by ds.order_date
+    ) as last_week_revenue,
+
+    round(
+
+        (
+            ds.revenue
+            -
+            lag(ds.revenue, 7) over (
+                order by ds.order_date
+            )
+        ) * 100.0
+
+        /
+
+        nullif(
+
+            lag(ds.revenue, 7) over (
+                order by ds.order_date
+            ),
+
+            0
+
+        ),
+
+        2
+
+    ) as revenue_vs_last_weekday_pct
+
+from daily_summary ds
+
+left join daily_refunds dr
+    on ds.order_date = dr.refund_date
+
+order by ds.order_date;
