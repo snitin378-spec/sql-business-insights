@@ -69,19 +69,22 @@ This project analyses an e-commerce dataset containing **40,000 customer orders*
 
 ## Daily Business Summary
 
-![Daily Business Summary](images/daily_business_summary.png)
+<img width="837" height="321" alt="daily_business_summary" src="https://github.com/user-attachments/assets/98ac2aac-8f3c-4bba-9fe7-abcdf675a1c1" />
+
 
 ---
 
 ## Funnel Conversion Analysis
 
-![Funnel Conversion](images/funnel_conversion.png)
+<img width="887" height="153" alt="funnel_conversion" src="https://github.com/user-attachments/assets/0204bc27-cc78-43aa-a3f7-80248713db93" />
+
 
 ---
 
 ## Customer Lifetime Value (LTV)
 
-![Customer LTV](images/customer_ltv.png)
+<img width="560" height="303" alt="customer_ltv" src="https://github.com/user-attachments/assets/4fe53d99-89e6-4811-88d0-6266048071ca" />
+
 
 ---
 
